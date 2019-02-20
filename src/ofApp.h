@@ -84,7 +84,6 @@ public:
     std::vector<ofPixels> buffer;
     int                 bufferSize;
     int                 bufferMaxSize;
-    int                 iteration;
     ofxImGui::Gui       gui;
     int                 inputType;
     char                inputFilePath[512];
@@ -104,6 +103,7 @@ public:
     float               outputFrameRate;
     int                 saveAs;
     int                 imgSeqExt = 0;
+	int					stuckFrames = 0;
 
     void setInputFilePath(const std::string &value);
     void browseMovie();

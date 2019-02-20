@@ -169,10 +169,14 @@ void ofApp::updateVideo() {
     updateSourceSize();
     updateResultSize();
     if (!bufferIsFilled()) {
-		if (originalPlayer.isFrameNew() || (originalPlayer.getCurrentFrame() - startFrame) == buffer.size()) {
+		if (originalPlayer.isFrameNew() || stuckFrames > 15) {
             buffer.push_back(originalPlayer.getPixels());
             originalPlayer.nextFrame();
+			stuckFrames = 0;
         }
+		else if ((originalPlayer.getCurrentFrame() - startFrame) == buffer.size()) {
+			stuckFrames++;
+		}
     }
     else if (savedAs != SAVE_FFMPEG) {
         updateCurrentFrame();
