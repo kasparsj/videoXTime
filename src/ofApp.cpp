@@ -169,8 +169,7 @@ void ofApp::updateVideo() {
     updateSourceSize();
     updateResultSize();
     if (!bufferIsFilled()) {
-		bool lastFrameHack = (originalPlayer.getCurrentFrame() + 1 == originalPlayer.getTotalNumFrames() && buffer.size() + 1 == originalPlayer.getTotalNumFrames());
-		if (originalPlayer.isFrameNew() || lastFrameHack) {
+		if (originalPlayer.isFrameNew() || (originalPlayer.getCurrentFrame() - startFrame) == buffer.size()) {
             buffer.push_back(originalPlayer.getPixels());
             originalPlayer.nextFrame();
         }
