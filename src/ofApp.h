@@ -37,6 +37,7 @@ public:
     void videoLoaded();
     void updateVideo();
     void updateOutputProps();
+    void clearBuffer();
     void updateBufferSize();
     void updateSourceSize();
     void updateResultSize();

@@ -51,8 +51,7 @@ void ofApp::reload() {
     strcpy(inputStartFrame, std::string("0").c_str());
     numFramesSaved = 0;
     if (inputType == INPUT_WEBCAM) {
-        previewFrame = 0;
-        buffer.clear();
+        clearBuffer();
     }
     else {
         bool bOk = originalPlayer.load(inputFilePath);
@@ -136,8 +135,7 @@ void ofApp::updateWebcam() {
 void ofApp::videoLoaded() {
     isLoading = false;
     isLoaded = true;
-    previewFrame = 0;
-    buffer.clear();
+    clearBuffer();
     source = &originalPlayer;
     if (swapAxis == SWAP_X) {
         strcpy(outputWidth, ofToString(MIN(originalPlayer.getWidth(), originalPlayer.getTotalNumFrames())).c_str());
@@ -159,8 +157,7 @@ void ofApp::updateVideo() {
     if (newStartFrame != startFrame) {
         startFrame = newStartFrame;
         originalPlayer.setFrame(startFrame);
-        previewFrame = 0;
-        buffer.clear();
+        clearBuffer();
     }
     inputFrames = originalPlayer.getTotalNumFrames() - startFrame;
     inputFrameRate = originalPlayer.getTotalNumFrames() / originalPlayer.getDuration();
@@ -198,6 +195,12 @@ void ofApp::updateOutputProps() {
     }
 }
 
+void ofApp::clearBuffer() {
+    previewFrame = 0;
+    stuckFrames = 0;
+    buffer.clear();
+}
+
 void ofApp::updateBufferSize() {
     int newBufferSize = MAX(ofToInt(outputWidth), MIN(inputWidth, inputFrames));
     if (swapAxis == SWAP_Y) {
@@ -207,8 +210,7 @@ void ofApp::updateBufferSize() {
         bufferSize = newBufferSize;
         bufferMaxSize = MIN(bufferSize, inputFrames);
         // todo: resize
-        previewFrame = 0;
-        buffer.clear();
+        clearBuffer();
         if (inputType == INPUT_FILE) {
             originalPlayer.setFrame(startFrame);
         }
