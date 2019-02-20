@@ -7,4 +7,4 @@ For an example see this experimental video: https://vimeo.com/316148251
 
 Written in C++ using openFrameworks.
 
-![](ofxColorTheory.gif)
+![](screenshot.png)
