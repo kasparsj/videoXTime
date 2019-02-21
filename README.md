@@ -3,6 +3,8 @@ Rotate a video in 3D by swapping X/Y axis and time. The result is somewhat simil
 
 As an example see this experimental video: https://vimeo.com/316148251
 
+Here is an explanatory video about the effect in russion: https://www.youtube.com/watch?v=n4tbdFD18vs
+
 Download macOS and Windows x64 binaries from releases.
 
 Written in C++ using openFrameworks.
