@@ -3,7 +3,7 @@ Rotate a video in 3D by swapping X/Y axis and time. The result is somewhat simil
 
 As an example see this experimental video: https://vimeo.com/316148251
 
-An explanation about the video effect in russian: https://www.youtube.com/watch?v=n4tbdFD18vs
+Here's an explanation about the video effect in russian: https://www.youtube.com/watch?v=n4tbdFD18vs
 
 Download macOS and Windows x64 binaries from releases.
 
