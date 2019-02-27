@@ -3,6 +3,7 @@
 #include "ofMain.h"
 #include "ofxImGui.h"
 #include "ofxVideoRecorder.h"
+#include "ofxImageSequencePlayer.h"
 
 //#ifdef TARGET_WIN32
 //#include "ofxWMFVideoPlayer.h"
@@ -34,8 +35,8 @@ public:
     
     void initializeWebcam();
     void updateWebcam();
-    void videoLoaded();
-    void updateVideo();
+    void sourceLoaded();
+    void updateSource();
     void updateOutputProps();
     void clearBuffer();
     void updateBufferSize();
@@ -68,9 +69,11 @@ public:
 //	ofxWMFVideoPlayer       originalPlayer;
 //	ofxWMFVideoPlayer       convertedPlayer;
 //#else
-	ofVideoPlayer       originalPlayer;
-	ofVideoPlayer       convertedPlayer;
+	ofVideoPlayer       videoPlayer;
+	ofVideoPlayer       resultPlayer;
 //#endif
+    ofxImageSequencePlayer imagePlayer;
+    ofBaseVideoPlayer*  sourcePlayer;
     ofBaseVideoDraws*   source;
     bool                errorLoading;
     bool                isLoading;
@@ -95,6 +98,7 @@ public:
     char                videoBitrate[24];
     char                videoCodec[24];
     char                videoPixelFormat[24];
+    char                slitSize[24];
     std::string         outputFilePath;
     int                 swapAxis;
     ofPixels            currentPixels;
@@ -105,6 +109,7 @@ public:
     int                 saveAs;
     int                 imgSeqExt = 0;
 	int					stuckFrames = 0;
+    int                 slit = 1;
 
     void setInputFilePath(const std::string &value);
     void browseMovie();

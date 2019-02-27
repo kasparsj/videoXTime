@@ -1,2 +1,3 @@
 ofxImGui
+ofxImageSequencePlayer
 ofxVideoRecorder

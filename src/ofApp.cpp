@@ -6,11 +6,12 @@ void ofApp::setup(){
 	ofSetVerticalSync(true);
 
 	// Uncomment this to show movies with alpha channels
-	originalPlayer.setPixelFormat(OF_PIXELS_RGB);
-    originalPlayer.setLoopState(OF_LOOP_NORMAL);
+	videoPlayer.setPixelFormat(OF_PIXELS_RGB);
+    videoPlayer.setLoopState(OF_LOOP_NORMAL);
     ofAddListener(videoRecorder.outputFileCompleteEvent, this, &ofApp::recordingComplete);
     
     strcpy(inputStartFrame, ofToString("0").c_str());
+    strcpy(slitSize, ofToString("1").c_str());
     strcpy(outputWidth, ofToString("").c_str());
     strcpy(outputHeight, ofToString("").c_str());
     strcpy(outputFps, ofToString(DEFAULT_FPS).c_str());
@@ -37,7 +38,7 @@ void ofApp::setInputFilePath(const std::string &value) {
 }
 
 void ofApp::browseMovie() {
-    ofFileDialogResult result = ofSystemLoadDialog("Select video");
+    ofFileDialogResult result = ofSystemLoadDialog("Select video or image...");
     if(result.bSuccess) {
         setInputFilePath(result.getPath());
         reload();
@@ -48,15 +49,30 @@ void ofApp::reload() {
     errorLoading = false;
     isLoaded = false;
     savedAs = NOT_SAVED;
-    strcpy(inputStartFrame, std::string("0").c_str());
+    strcpy(inputStartFrame, ofToString("0").c_str());
     numFramesSaved = 0;
     if (inputType == INPUT_WEBCAM) {
         clearBuffer();
     }
     else {
-        bool bOk = originalPlayer.load(inputFilePath);
-        if (!bOk) {
-            errorLoading = true;
+        ofFile file(inputFilePath);
+        std::string ext = ofToLower(file.getExtension());
+        bool bOk = false;
+        if (file.isDirectory() || ofxImageSequencePlayer::isAllowedExt(ext)) {
+            bOk = imagePlayer.load(inputFilePath);
+            if (!bOk) {
+                errorLoading = true;
+            }
+            source = &imagePlayer;
+            sourcePlayer = &imagePlayer;
+        }
+        else {
+            bOk = videoPlayer.load(inputFilePath);
+            if (!bOk) {
+                errorLoading = true;
+            }
+            source = &videoPlayer;
+            sourcePlayer = &videoPlayer;
         }
         isLoading = bOk;
     }
@@ -70,10 +86,10 @@ void ofApp::update() {
     else {
         webcam.close();
         if (isLoaded) {
-            updateVideo();
+            updateSource();
         }
-        else if (isLoading && originalPlayer.isLoaded()) {
-            videoLoaded();
+        else if (isLoading && sourcePlayer->isLoaded()) {
+            sourceLoaded();
         }
     }
     
@@ -85,16 +101,16 @@ void ofApp::update() {
     else if (savedAs == SAVE_FFMPEG) {
         if (!isLoaded2) {
             if (!isLoading2) {
-                isLoading2 = convertedPlayer.load(outputFilePath);
+                isLoading2 = resultPlayer.load(outputFilePath);
             }
-            else if (convertedPlayer.isLoaded()) {
+            else if (resultPlayer.isLoaded()) {
                 isLoading2 = false;
                 isLoaded2 = true;
-                convertedPlayer.play();
+                resultPlayer.play();
             }
         }
         else {
-            convertedPlayer.update();
+            resultPlayer.update();
         }
     }
 }
@@ -132,46 +148,46 @@ void ofApp::updateWebcam() {
     }
 }
 
-void ofApp::videoLoaded() {
+void ofApp::sourceLoaded() {
     isLoading = false;
     isLoaded = true;
     clearBuffer();
-    source = &originalPlayer;
     if (swapAxis == SWAP_X) {
-        strcpy(outputWidth, ofToString(MIN(originalPlayer.getWidth(), originalPlayer.getTotalNumFrames())).c_str());
-        strcpy(outputHeight, ofToString(originalPlayer.getHeight()).c_str());
+        strcpy(outputWidth, ofToString(MIN(sourcePlayer->getWidth(), sourcePlayer->getTotalNumFrames())).c_str());
+        strcpy(outputHeight, ofToString(sourcePlayer->getHeight()).c_str());
     }
     else {
-        strcpy(outputWidth, ofToString(originalPlayer.getWidth()).c_str());
-        strcpy(outputHeight, ofToString(MIN(originalPlayer.getHeight(), originalPlayer.getTotalNumFrames())).c_str());
+        strcpy(outputWidth, ofToString(sourcePlayer->getWidth()).c_str());
+        strcpy(outputHeight, ofToString(MIN(sourcePlayer->getHeight(), sourcePlayer->getTotalNumFrames())).c_str());
     }
-    strcpy(outputFps, ofToString(originalPlayer.getTotalNumFrames() / originalPlayer.getDuration()).c_str());
-	originalPlayer.setPaused(true);
+    strcpy(outputFps, ofToString(sourcePlayer->getTotalNumFrames() / sourcePlayer->getDuration()).c_str());
+    strcpy(slitSize, ofToString("1").c_str());
+	sourcePlayer->setPaused(true);
 }
 
-void ofApp::updateVideo() {
-    originalPlayer.update();
-    inputWidth = originalPlayer.getWidth();
-    inputHeight = originalPlayer.getHeight();
-    int newStartFrame = MIN(MAX(0, ofToInt(inputStartFrame)), originalPlayer.getTotalNumFrames() - 1);
+void ofApp::updateSource() {
+    sourcePlayer->update();
+    inputWidth = sourcePlayer->getWidth();
+    inputHeight = sourcePlayer->getHeight();
+    int newStartFrame = MIN(MAX(0, ofToInt(inputStartFrame)), sourcePlayer->getTotalNumFrames() - 1);
     if (newStartFrame != startFrame) {
         startFrame = newStartFrame;
-        originalPlayer.setFrame(startFrame);
+        sourcePlayer->setFrame(startFrame);
         clearBuffer();
     }
-    inputFrames = originalPlayer.getTotalNumFrames() - startFrame;
-    inputFrameRate = originalPlayer.getTotalNumFrames() / originalPlayer.getDuration();
+    inputFrames = sourcePlayer->getTotalNumFrames() - startFrame;
+    inputFrameRate = sourcePlayer->getTotalNumFrames() / sourcePlayer->getDuration();
     updateOutputProps();
     updateBufferSize();
     updateSourceSize();
     updateResultSize();
     if (!bufferIsFilled()) {
-		if (originalPlayer.isFrameNew() || stuckFrames > 15) {
-            buffer.push_back(originalPlayer.getPixels());
-            originalPlayer.nextFrame();
+		if (sourcePlayer->isFrameNew() || stuckFrames > 15) {
+            buffer.push_back(sourcePlayer->getPixels());
+            sourcePlayer->nextFrame();
 			stuckFrames = 0;
         }
-		else if ((originalPlayer.getCurrentFrame() - startFrame) == buffer.size()) {
+		else if ((sourcePlayer->getCurrentFrame() - startFrame) == buffer.size()) {
 			stuckFrames++;
 		}
     }
@@ -181,13 +197,14 @@ void ofApp::updateVideo() {
 }
 
 void ofApp::updateOutputProps() {
+    slit = MAX(1, ofToInt(slitSize));
     if (swapAxis == SWAP_X) {
         strcpy(outputHeight, ofToString(inputHeight).c_str());
-        outputFrames = inputWidth;
+        outputFrames = ceil(inputWidth / (float) MIN(inputWidth, slit));
     }
     else {
         strcpy(outputWidth, ofToString(inputWidth).c_str());
-        outputFrames = inputHeight;
+        outputFrames = ceil(inputHeight / (float) MIN(inputHeight, slit));
     }
     outputFrameRate = ofToFloat(outputFps);
     if (outputFrameRate <= 0 || outputFrameRate > 60) {
@@ -212,7 +229,7 @@ void ofApp::updateBufferSize() {
         // todo: resize
         clearBuffer();
         if (inputType == INPUT_FILE) {
-            originalPlayer.setFrame(startFrame);
+            sourcePlayer->setFrame(startFrame);
         }
     }
 }
@@ -303,12 +320,8 @@ ofPixels ofApp::getOutputFrame(const int frameNum) const {
         pix.allocate(bufferSize, buffer[0].getHeight(), buffer[0].getNumChannels());
         for (int i=0; i<pix.getWidth(); i++) {
             for (int j=0; j<pix.getHeight(); j++) {
-                if (i < buffer.size()) {
-                    pix.setColor(i, j, buffer[i].getColor(frameNum, j));
-                }
-                else {
-                    pix.setColor(i, j, ofColor::black);
-                }
+                int k = MIN(i, buffer.size() - 1);
+                pix.setColor(i, j, buffer[k / (float)slit].getColor((frameNum * slit + frameNum + i % slit) % buffer[0].getWidth(), j));
             }
         }
     }
@@ -316,12 +329,8 @@ ofPixels ofApp::getOutputFrame(const int frameNum) const {
         pix.allocate(buffer[0].getWidth(), bufferSize, buffer[0].getNumChannels());
         for (int i=0; i<pix.getWidth(); i++) {
             for (int j=0; j<pix.getHeight(); j++) {
-                if (j < buffer.size()) {
-                    pix.setColor(i, j, buffer[j].getColor(i, frameNum));
-                }
-                else {
-                    pix.setColor(i, j, ofColor::black);
-                }
+                int k = MIN(j, buffer.size() - 1);
+                pix.setColor(i, j, buffer[k / (float)slit].getColor(i, (frameNum * slit + frameNum + j % slit) % buffer[0].getHeight()));
             }
         }
 
@@ -352,7 +361,7 @@ void ofApp::drawResult() {
     ofSetHexColor(0xFFFFFF);
     if (savedAs == SAVE_FFMPEG) {
         if (isLoaded2) {
-            convertedPlayer.draw(40 + halfW + (halfW - resultW) / 2.f, 20 + (halfH - resultH) / 2.f, resultW, resultH);
+            resultPlayer.draw(40 + halfW + (halfW - resultW) / 2.f, 20 + (halfH - resultH) / 2.f, resultW, resultH);
         }
     }
     else {
@@ -462,6 +471,7 @@ void ofApp::drawOutputPanel() {
     else {
         ImGui::RadioButton("x <-> time", &swapAxis, SWAP_X);
         ImGui::RadioButton("y <-> time", &swapAxis, SWAP_Y);
+        ImGui::InputText("slit size", slitSize, IM_ARRAYSIZE(slitSize));
         if (swapAxis == SWAP_X) {
             ImGui::InputText("width", outputWidth, IM_ARRAYSIZE(outputWidth));
         }
@@ -510,7 +520,7 @@ void ofApp::startSaving() {
     else {
         std::string fileName = "webcam";
         if (inputType == INPUT_FILE) {
-            fileName = ofFilePath::getBaseName(originalPlayer.getMoviePath());
+            fileName = ofFilePath::getBaseName(ofToString(inputFilePath));
         }
         std::string fileExt = ".mp4"; // ffmpeg uses the extension to determine the container type. run 'ffmpeg -formats' to see supported formats
         std::string defaultName = fileName + "_" + ofGetTimestampString() + fileExt;
@@ -521,7 +531,7 @@ void ofApp::startSaving() {
         savedAs = NOT_SAVED;
         isSaving = true;
         if (inputType == INPUT_FILE) {
-            originalPlayer.setFrame(startFrame);
+            sourcePlayer->setFrame(startFrame);
         }
     }
 }
@@ -587,7 +597,7 @@ void ofApp::mouseReleased(int x, int y, int button){
     if (isLoaded2) {
         if (x >= 40 + halfW + (halfW - resultW) / 2.f && x <= 40 + halfW + (halfW - resultW) / 2.f + resultW &&
             y >= 40 + halfH + (halfH - resultH) / 2.f && y <= 20 + (halfH - resultH) / 2.f + resultH) {
-            convertedPlayer.setPaused(originalPlayer.isPlaying());
+            resultPlayer.setPaused(sourcePlayer->isPlaying());
         }
     }
 }
